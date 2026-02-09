@@ -1,0 +1,88 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ORGANIZER
+  ATTENDEE
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(ATTENDEE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  events   Event[]   @relation("OrganizerEvents")
+  bookings Booking[]
+
+  @@index([email])
+  @@map("users")
+}
+
+model Event {
+  id              String      @id @default(uuid())
+  title           String
+  description     String      @db.Text
+  location        String
+  date            DateTime
+  ticketPrice     Float       @default(0)
+  totalSeats      Int
+  remainingSeats  Int
+  status          EventStatus @default(DRAFT)
+  organizerId     String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  organizer User      @relation("OrganizerEvents", fields: [organizerId], references: [id], onDelete: Cascade)
+  bookings  Booking[]
+
+  @@index([organizerId])
+  @@index([status])
+  @@index([date])
+  @@map("events")
+}
+
+model Booking {
+  id             String        @id @default(uuid())
+  eventId        String
+  userId         String
+  ticketQuantity Int           @default(1)
+  status         BookingStatus @default(PENDING)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  // Relations
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Prevent duplicate bookings
+  @@unique([eventId, userId])
+  @@index([userId])
+  @@index([eventId])
+  @@map("bookings")
+}
